@@ -3,19 +3,22 @@ import pandas as pd
 import pickle
 
 # -------------------------------
-# Load model
-# -------------------------------
-price = pickle.load(open("LinearRegressionModel.pkl", "rb"))
-
-# -------------------------------
-# Page config
+# Page config (MUST be first)
 # -------------------------------
 st.set_page_config(
     page_title="Car Price Predictor",
+    page_icon="🚗",
     layout="centered"
 )
 
-st.title("🚗 Car Price Predictor")
+# -------------------------------
+# Load model
+# -------------------------------
+@st.cache_resource
+def load_model():
+    return pickle.load(open("LinearRegressionModel.pkl", "rb"))
+
+price = load_model()
 
 # -------------------------------
 # Load dataset
@@ -28,29 +31,64 @@ def load_data():
 
 car = load_data()
 
+# -------------------------------
+# Header
+# -------------------------------
+st.markdown(
+    """
+    <h1 style="text-align:center;">🚗 Car Price Predictor</h1>
+    <p style="text-align:center; color:gray;">
+    Estimate the resale price of your car using machine learning
+    </p>
+    """,
+    unsafe_allow_html=True
+)
+
+st.divider()
+
+# -------------------------------
+# Sidebar Inputs
+# -------------------------------
+st.sidebar.header("🔧 Car Details")
 
 companies = sorted(car["company"].unique())
 years = sorted(car["year"].unique(), reverse=True)
 fuel_types = sorted(car["fuel_type"].unique())
 
-company = st.selectbox("Select Company", companies)
+company = st.sidebar.selectbox("Company", companies)
 
 models = sorted(car[car["company"] == company]["name"].unique())
-car_name = st.selectbox("Select Model", models)
+car_name = st.sidebar.selectbox("Model", models)
 
-year = st.selectbox("Select Manufacturing Year", years)
-fuel = st.selectbox("Select Fuel Type", fuel_types)
+year = st.sidebar.selectbox("Manufacturing Year", years)
 
-kms_driven = st.number_input(
+fuel = st.sidebar.selectbox("Fuel Type", fuel_types)
+
+kms_driven = st.sidebar.number_input(
     "Kilometers Driven",
     min_value=0,
-    step=1000
+    max_value=500_000,
+    step=1_000,
+    help="Total distance driven in kilometers"
 )
 
 # -------------------------------
-# Predict
+# Main Layout
 # -------------------------------
-if st.button("Predict Price"):
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric("🚘 Selected Car", car_name)
+
+with col2:
+    st.metric("🏭 Company", company)
+
+st.divider()
+
+# -------------------------------
+# Predict Button
+# -------------------------------
+if st.button("💰 Predict Price", use_container_width=True):
 
     input_df = pd.DataFrame(
         [[car_name, company, year, kms_driven, fuel]],
@@ -59,4 +97,24 @@ if st.button("Predict Price"):
 
     predicted_price = price.predict(input_df)[0]
 
-    st.success(f"💰 Estimated Car Price: ₹ {predicted_price:,.0f}")
+    st.success(
+        f"""
+        ### 💸 Estimated Price  
+        **₹ {predicted_price:,.0f}**
+        """
+    )
+
+    st.caption("⚠️ This is an estimated value based on historical data.")
+
+# -------------------------------
+# Footer
+# -------------------------------
+st.markdown(
+    """
+    <hr>
+    <p style="text-align:center; color:gray; font-size:14px;">
+    Built with ❤️ using Streamlit & Machine Learning
+    </p>
+    """,
+    unsafe_allow_html=True
+)
